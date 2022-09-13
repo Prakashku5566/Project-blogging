@@ -46,7 +46,7 @@ const authIdValid = (req, res, next) => {
                 return res
                     .status(400)
                     .send({ status: false, msg: "!!Oops author id is not valid" });
-            }else{next()}
+            }else{ console.log("dog"),next()}
         }else if(!req.query.authorId || !req.body.authorId) {
             next()
         }      }

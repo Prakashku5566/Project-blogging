@@ -106,7 +106,7 @@ const deleteBlogs = async (req, res) => {
     try {
         let BlogId = req.params.blogId
         let findData = await blogModel.findOne({ _id: BlogId, isDeleted: false })
-        if (findData.length == 0) {
+        if (!findData) {
             return res.status(404).send({ status: false, msg: "no blog found" })
         } else {
             await blogModel.findOneAndUpdate({ _id: BlogId },
