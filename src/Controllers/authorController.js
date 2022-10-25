@@ -1,74 +1,60 @@
 const authorModel = require("../Model/authorModel")
 const jwt = require("jsonwebtoken");
-const validEmail = /[a-zA-Z0-9_\-\.]+[@][a-z]+[\.][a-z]{2,3}/
-const stringvalid =/[^(A-Z)]+[a-z]+(?:(?:|['_\. ])([a-z]*(\.\D)?[a-z])+)*$/
-const passValid=/^[a-zA-Z0-9@]{6,10}$/
 
+const {stringvalid,validEmail,passValid,isvalidBody,validTittle} = require("../validator/validator")
 
 const createAuthor = async (req, res) => {
     try {
-        let data = req.body;
-        if (Object.keys(data).length == 0) { return res.status(400).send({ status: false, msg: "incomplete request data/please provide more data" }) }
-
-        let { fname, lname, title, email,password } = data
-        //--mandatory field--//
-        if (!fname) { return res.status(400).send({ status: false, msg: "First Name is required...!" }) }
-        if (!lname) { return res.status(400).send({ status: false, msg: "last Name is required...!" }) }
-        if (!title) { return res.status(400).send({ status: false, msg: "title is required...!" }) }
-        if (!email) { return res.status(400).send({ status: false, msg: "email is required...!" }) }
-        if (!password) { return res.status(400).send({ status: false, msg: "password is required...!" }) }
-
-        //---format---//
-        let validFn=stringvalid.test(fname)
-        if (!validFn) { return res.status(400).send({ status:false,msg: "first name is in invalid format first letter should always be capital and only albhabates are allowed" }) }
-        let validLn=stringvalid.test(lname)
-        if (!validLn) { return res.status(400).send({ status:false,msg: "last name is in invalid format first letter should always be capital  and only albhabates are allowed" }) }
-        if (title != "Mr" && title != "Mrs" && title !="Miss")
-        return res.status(400).send({status : false,msg: "you can choose either Mr or Mrs or Miss only" })
-        let validE = validEmail.test(email)
-        if (!validE) { return res.status(400).send({ status:false,msg: "email id valid format =>(examplexx@xyz.xyz)" }) }
-        let validP=passValid.test(password)
-        if (!validP) { return res.status(400).send({ status:false,msg: "Your password must contain at least one alphabet one number and one special character minimum 6 character" }) }
-
+        if (!isvalidBody(req.body)) { return res.status(400).send({ status: false, message: "incomplete request please provide  data for creation" }) }
+        let { fname, lname, title, email,password } = req.body//data
+       
+        if (!fname ||(!stringvalid(fname))) { return res.status(400).send({ status:false,message: "please enter fname and it should be valid" }) }
+        
+        if (!lname ||(!stringvalid(lname))) { return res.status(400).send({ status:false,message: "please enter lname and it should be valid" }) }
+        
+        if (!title||(!validTittle(title))){return res.status(400).send({status : false,message: "please provide tittle it should be  Mr or Mrs or Miss only" })}
+       
+        if (!email ||(!validEmail(email))) { return res.status(400).send({ status:false,message: "please provide email it should be valid format =>(examplexx@xyz.xyz)" }) }
+        
+        if (!password ||(!passValid(password))) { return res.status(400).send({ status:false,message: "please provide password it must contain at least one alphabet one number and one special character minimum 6 character" }) }
         //----dublicate key---//
 
         let inUse= await authorModel.findOne({email:email})
-        if(inUse)return res.status(400).send({status:false,msg:"email already in use"})
+        if(inUse)return res.status(400).send({status:false,message:"email already in use"})
         //----creating authors-----------------------------//
+        let data ={fname,lname,title,email,password}
         let savedData = await authorModel.create(data)
-        return res.status(201).send({status:true, data: savedData })
+        return res.status(201).send({status:true,message:"success", data: savedData })
 
     } catch (err) {
-        res.status(500).send({ err: err.message, status: false })
+      return  res.status(500).send({ err: err.message, status: false })
     }
 }
 
 const login = async (req, res) => {
     try {
         let data = req.body
-        if (Object.keys(data).length == 0) { return res.status(400).send({ status: false, msg: "incomplete request data/please provide more data" }) }
+        if (!isvalidBody(data)) { return res.status(400).send({ status: false, message: "incomplete request data/please provide more data" }) }
 
      let {email,password}=data
-        if (!email) {
-            return res.status(400).send({ status: false, msg: "please enter  your email" })
-        } else if (!password) {
-            return res.status(400).send({ status: false, msg: "please enter your password" })
-        } else {
+        if (!email) {return res.status(400).send({ status: false, message: "please enter  your email" })} 
+         if (!password) {return res.status(400).send({ status: false, message: "please enter your password" })}
+         
             let user = await authorModel.findOne({ email: email, password: password });
             if (!user) {
-                return res.status(401).send({ status: false, msg: "your email or password is incorrect" })
-            } else {
+                return res.status(401).send({ status: false, message: "your email or password is incorrect" })
+            } 
+
                 let token = jwt.sign(
                     {
-                        authorId: user._id.toString(),   //<1st input>
+                        authorId: user._id.toString(), 
                         team: "Group-09"
-                    }, "group-09-secretkey");   //2nd input which is very very hard to guess
+                    }, "group-09-secretkey");
                  res.setHeader("x-api-key", token);
-                res.status(200).send({ status: true, msg: "login successful ",token });
-            }
-        }
+             return res.status(200).send({ status: true, message: "login successful ",token });
+            
     } catch (err) {
-        res.status(500).send({ status: false, msg: err.message })
+     return res.status(500).send({ status: false, message: err.message })
 
     }
 }
