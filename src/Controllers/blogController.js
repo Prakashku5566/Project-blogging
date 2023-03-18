@@ -1,49 +1,43 @@
 const blogModel = require("../Model/blogModel")
 const authorModel = require("../Model/authorModel");
 //const mongoose = require('mongoose')
+const {stringvalid,isValidObjectId,isvalidBody,validbookTittle} = require("../validator/validator")
 
 //-------------------------------------create blog------------------------------------------------//
 const createBlog = async (req, res) => {
     try {
         let data = req.body;
-        if (Object.keys(data).length == 0) { return res.status(400).send({ status: false, msg: "incomplete request data/please provide more data" }) }
+        if (!isvalidBody(data)) { return res.status(400).send({ status: false, msg: "incomplete request data/please provide more data" }) }
 
         let { title, authorId, category, body, isPublished, tags, subcategory } = data
         // ==Mandatory_fields== \\
 
-        if (!title) return res.status(400).send({ status: false, msg: "Title is required" })
-        if (!body) return res.status(400).send({ status: false, msg: "body is required" })
-        if (!category) return res.status(400).send({ status: false, msg: "category is required" })
-        if (!authorId) return res.status(400).send({ status: false, msg: "author id required" })
+        if (!title||(!validbookTittle(title))) return res.status(400).send({ status: false, msg: "Title is required it should be valid" })
+        if (!body||(!validbookTittle(body))) return res.status(400).send({ status: false, msg: "body is required it should be valid" })
+        if (!category||(!validbookTittle(category))) return res.status(400).send({ status: false, msg: "category is required it should be valid" })
+        if (!authorId||(!isValidObjectId(authorId))) return res.status(400).send({ status: false, msg: "author id required it should be valid" })
         //==format==\\
-        if (typeof isPublished !== "boolean") {
-            return res.status(400).send({ status: false, msg: "is Published input is needed" })
-        }
-        if (typeof (title || body) !== "string") {
-            return res.status(400).send({ status: false, msg: "title/body should be in string only" })
-        }
-        if (typeof (tags || subcategory) !== "object") {
-            return res.status(400).send({ status: false, msg: "tags/subcategory should be in array of string only" })
+        if(tags){
+            if(!stringvalid(tags)){return res.status(400).send({status:false,message:"please provide valid tags"})}
         }
 
         // ==Duplication== \\
-        let authId = await authorModel.findById(authorId)
+        let authId = await authorModel.findById(authorId) 
         if (!authId) { return res.status(404).send({ status: false, msg: "!!Oops author id doesn't exist" }) }
         let tokenUser = req.token.authorId
         if (req.body.authorId !== tokenUser) {
-            return res
-                .status(400)
-                .send({ status: false, msg: "you are not authorized" });
+            return res.status(400).send({ status: false, msg: "you are not authorized" });
         }
-        let blogcheck = await blogModel.findOne({ title: data.title, isDeleted: false })
+        let blogcheck = await blogModel.findOne({ title:title, isDeleted: false })
         if (blogcheck) return res.status(400).send({ status: false, msg: "this blog is already present" })
 
-        if (data.isPublished === true) { data.publishedAt = Date.now() }
+        if (isPublished === true) { data.publishedAt = Date.now() }
 
         let savedData = await blogModel.create(data)
+        //immutable object 
         return res.status(201).send({ data: savedData })
     } catch (err) {
-        res.status(500).send({ status: false, status: false, msg: err.message })
+       return res.status(500).send({ status: false, status: false, msg: err.message })
     }
 }
 
@@ -52,6 +46,9 @@ const getBlogs = async (req, res) => {
     try {
         let combination = req.query
         let {authorId,category,tags,subcategory}=combination
+        if(authorId){
+            if(!isValidObjectId(authorId))return res.status(400).send({status:false,message:"please enter valid authorid"})
+        }
         let dataBlog = await blogModel.find({ $and: [{ isDeleted: false, isPublished: true }, combination] })
         if (dataBlog == 0) {
             return res.status(404).send({ status: false, msg: " No Such Blog found " })
@@ -97,7 +94,7 @@ const updateBlog = async function (req, res) {
                 , $push: { tags: update.tags, subcategory: update.subcategory }
             }, { new: true }) // , upsert: true 
         return res.status(200).send({ status: true, msg: blogs })
-    } catch (err) { res.status(500).send({ status: false, msg: err.message }) }
+    } catch (err) {return res.status(500).send({ status: false, msg: err.message }) }
 }
 
 //....................deletion1..............................................................
